@@ -150,6 +150,11 @@ flask_app = Flask(__name__)
 def health():
     return jsonify({"status": "ok", "polls": len(votes)})
 
+@flask_app.route("/send_test", methods=["GET"])
+def send_test():
+    send_poll("【测试】机器人配置验证", ["收到 ✅", "没收到 ❌"])
+    return jsonify({"status": "ok"})
+
 @flask_app.route("/callback", methods=["POST"])
 def callback():
     data = request.get_json(silent=True) or {}
