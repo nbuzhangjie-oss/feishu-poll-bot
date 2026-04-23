@@ -65,35 +65,16 @@ def send_text(receive_id: str, text: str, id_type: str = "chat_id"):
         timeout=10,
     )
 
-_name_cache: dict = {}
-
-def load_member_names(chat_id: str):
-    """从群成员列表预加载姓名缓存"""
-    try:
-        page_token = None
-        while True:
-            params = {"member_id_type": "open_id", "page_size": 100}
-            if page_token:
-                params["page_token"] = page_token
-            resp = requests.get(
-                f"https://open.feishu.cn/open-apis/im/v1/chats/{chat_id}/members",
-                headers={"Authorization": f"Bearer {get_token()}"},
-                params=params, timeout=10,
-            ).json()
-            for m in resp.get("data", {}).get("items", []):
-                oid = m.get("member_id", "")
-                name = m.get("name", "")
-                if oid and name:
-                    _name_cache[oid] = name
-            if not resp.get("data", {}).get("has_more"):
-                break
-            page_token = resp.get("data", {}).get("page_token")
-        print(f"已加载 {len(_name_cache)} 位成员姓名")
-    except Exception as e:
-        print(f"加载成员姓名失败: {e}")
-
 def get_user_name(open_id: str) -> str:
-    return _name_cache.get(open_id, open_id)
+    try:
+        resp = requests.get(
+            f"https://open.feishu.cn/open-apis/contact/v3/users/{open_id}",
+            headers={"Authorization": f"Bearer {get_token()}"},
+            params={"user_id_type": "open_id"}, timeout=5,
+        )
+        return resp.json().get("data", {}).get("user", {}).get("name", open_id)
+    except Exception:
+        return open_id
 
 # ============================================================
 # 卡片构建
@@ -293,9 +274,6 @@ def start_scheduler():
     scheduler.start()
     print("定时任务已启动")
 
-load_member_names(CHAT_ID)
-if ACTIVITY_CHAT_ID:
-    load_member_names(ACTIVITY_CHAT_ID)
 start_scheduler()
 
 if __name__ == "__main__":
