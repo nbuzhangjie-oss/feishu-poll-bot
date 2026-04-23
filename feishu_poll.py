@@ -15,6 +15,10 @@ POLL_DURATION_HOURS = 48
 PORT                = int(os.environ.get("PORT", 5000))
 # 管理员 open_id，投票详情私信发给他，群里只显示汇总
 ADMIN_OPEN_ID       = os.environ.get("ADMIN_OPEN_ID", "ou_2edc78caaf90a9e03a732e3b8383a455")
+# 活动群 chat_id，点「参加」自动拉人入群（先创建好群并把机器人加进去）
+ACTIVITY_CHAT_ID    = os.environ.get("ACTIVITY_CHAT_ID", "")
+# 投票中哪个选项index算「参加」
+JOIN_OPTION_INDEX   = 0
 
 SCHEDULES = [
     {
@@ -209,6 +213,28 @@ def process_vote(poll_id, open_id, option_index, chat_id):
         total    = sum(counts)
         opt_name = options[option_index] if option_index < len(options) else "?"
         name     = get_user_name(open_id)
+
+        # 点「参加」自动拉入活动群
+        if option_index == JOIN_OPTION_INDEX and ACTIVITY_CHAT_ID:
+            add_resp = requests.post(
+                f"https://open.feishu.cn/open-apis/im/v1/chats/{ACTIVITY_CHAT_ID}/members",
+                headers={"Authorization": f"Bearer {get_token()}"},
+                json={"id_list": [open_id], "member_id_type": "open_id"},
+                timeout=10,
+            ).json()
+            if add_resp.get("code") == 0:
+                print(f"  -> 已将 {name} 加入活动群")
+            else:
+                print(f"  -> 加群失败: {add_resp}")
+        elif old_index == JOIN_OPTION_INDEX and ACTIVITY_CHAT_ID and is_change:
+            # 改选为「不参加」，踢出活动群
+            requests.delete(
+                f"https://open.feishu.cn/open-apis/im/v1/chats/{ACTIVITY_CHAT_ID}/members",
+                headers={"Authorization": f"Bearer {get_token()}"},
+                json={"id_list": [open_id], "member_id_type": "open_id"},
+                timeout=10,
+            )
+            print(f"  -> 已将 {name} 移出活动群")
 
         # 群里只发汇总（不暴露个人）
         summary = "  |  ".join(
