@@ -35,6 +35,7 @@ SCHEDULES = [
 
 votes: dict = {}
 votes_lock  = threading.Lock()
+event_log: list = []  # 记录最近事件
 
 # ============================================================
 # Token
@@ -167,6 +168,7 @@ def debug():
         "ACTIVITY_CHAT_ID": ACTIVITY_CHAT_ID or "未设置",
         "ADMIN_OPEN_ID": ADMIN_OPEN_ID,
         "polls": len(votes),
+        "recent_events": event_log[-10:],
     })
 
 @flask_app.route("/test_add_member", methods=["GET"])
@@ -237,12 +239,20 @@ def process_vote(poll_id, open_id, option_index, chat_id, user_name=""):
         opt_name = options[option_index] if option_index < len(options) else "?"
         name     = user_name or get_user_name(open_id)
 
+        log = {"time": datetime.datetime.now().strftime("%H:%M:%S"),
+               "open_id": open_id, "option_index": option_index,
+               "is_change": is_change, "old_index": old_index}
+
         # 只处理「参加」，不参加直接忽略
         if option_index != JOIN_OPTION_INDEX:
+            log["action"] = "ignored(not_join)"
+            event_log.append(log)
             return
 
         # 已经参加过，不重复处理
         if is_change and old_index == JOIN_OPTION_INDEX:
+            log["action"] = "ignored(already_joined)"
+            event_log.append(log)
             return
 
         # 拉入活动群
@@ -253,6 +263,8 @@ def process_vote(poll_id, open_id, option_index, chat_id, user_name=""):
                 json={"id_list": [open_id], "member_id_type": "open_id"},
                 timeout=10,
             ).json()
+            log["add_member_code"] = add_resp.get("code")
+            log["add_member_msg"] = add_resp.get("msg")
             if add_resp.get("code") == 0:
                 print(f"  -> 已将 {name} 加入活动群")
             else:
@@ -260,6 +272,10 @@ def process_vote(poll_id, open_id, option_index, chat_id, user_name=""):
 
         # 私信通知管理员
         admin_msg = f"✅ {name} 参加本次例跑（共{counts[JOIN_OPTION_INDEX]}人参加）"
+        log["admin_msg"] = admin_msg
+        event_log.append(log)
+        if len(event_log) > 50:
+            event_log.pop(0)
         print(f"  -> {admin_msg}")
         send_text(ADMIN_OPEN_ID, admin_msg, id_type="open_id")
 
