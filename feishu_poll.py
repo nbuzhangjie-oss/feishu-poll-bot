@@ -16,7 +16,7 @@ PORT                = int(os.environ.get("PORT", 5000))
 # 管理员 open_id，投票详情私信发给他，群里只显示汇总
 ADMIN_OPEN_ID       = os.environ.get("ADMIN_OPEN_ID", "ou_2edc78caaf90a9e03a732e3b8383a455")
 # 活动群 chat_id，点「参加」自动拉人入群（先创建好群并把机器人加进去）
-ACTIVITY_CHAT_ID    = os.environ.get("ACTIVITY_CHAT_ID", "")
+ACTIVITY_CHAT_ID    = os.environ.get("ACTIVITY_CHAT_ID", "oc_b90b4f2b47b73b21b10daeb80756cdca")
 # 投票中哪个选项index算「参加」
 JOIN_OPTION_INDEX   = 0
 
