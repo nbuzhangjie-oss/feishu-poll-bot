@@ -169,32 +169,35 @@ def callback():
         return jsonify({"challenge": data.get("challenge", "")})
 
     if data.get("schema") == "2.0":
-        event   = data.get("event", {})
-        open_id = event.get("operator", {}).get("open_id", "")
-        action  = event.get("action", {})
-        chat_id = event.get("context", {}).get("open_chat_id", "") or CHAT_ID
+        event     = data.get("event", {})
+        operator  = event.get("operator", {})
+        open_id   = operator.get("open_id", "")
+        user_name = operator.get("name", "")
+        action    = event.get("action", {})
+        chat_id   = event.get("context", {}).get("open_chat_id", "") or CHAT_ID
     else:
-        open_id = data.get("open_id", "")
-        action  = data.get("action", {})
-        chat_id = data.get("open_chat_id", "") or CHAT_ID
+        open_id   = data.get("open_id", "")
+        user_name = data.get("user_name", "")
+        action    = data.get("action", {})
+        chat_id   = data.get("open_chat_id", "") or CHAT_ID
 
     value        = action.get("value", {})
     poll_id      = value.get("poll_id")
     option_index = value.get("option_index")
 
-    print(f"收到点击: {open_id} 选{option_index} poll={poll_id} in_votes={poll_id in votes}")
+    print(f"收到点击: {user_name or open_id} 选{option_index} poll={poll_id} in_votes={poll_id in votes}")
 
     if poll_id and option_index is not None and poll_id in votes:
         threading.Thread(
             target=process_vote,
-            args=(poll_id, open_id, option_index, chat_id),
+            args=(poll_id, open_id, option_index, chat_id, user_name),
             daemon=True,
         ).start()
 
     return jsonify({}), 200
 
 
-def process_vote(poll_id, open_id, option_index, chat_id):
+def process_vote(poll_id, open_id, option_index, chat_id, user_name=""):
     try:
         with votes_lock:
             if poll_id not in votes:
@@ -203,6 +206,8 @@ def process_vote(poll_id, open_id, option_index, chat_id):
             is_change = open_id in poll["records"]
             old_index = poll["records"].get(open_id)
             poll["records"][open_id] = option_index
+            # 保存姓名方便后续汇总
+            poll.setdefault("names", {})[open_id] = user_name or open_id
             records   = dict(poll["records"])
             options   = poll["options"]
 
@@ -212,7 +217,7 @@ def process_vote(poll_id, open_id, option_index, chat_id):
                 counts[idx] += 1
         total    = sum(counts)
         opt_name = options[option_index] if option_index < len(options) else "?"
-        name     = get_user_name(open_id)
+        name     = user_name or get_user_name(open_id)
 
         # 只处理「参加」，不参加直接忽略
         if option_index != JOIN_OPTION_INDEX:
