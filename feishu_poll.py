@@ -161,6 +161,14 @@ def send_test():
     send_poll("【测试】机器人配置验证", ["收到 ✅", "没收到 ❌"])
     return jsonify({"status": "ok"})
 
+@flask_app.route("/debug", methods=["GET"])
+def debug():
+    return jsonify({
+        "ACTIVITY_CHAT_ID": ACTIVITY_CHAT_ID or "未设置",
+        "ADMIN_OPEN_ID": ADMIN_OPEN_ID,
+        "polls": len(votes),
+    })
+
 @flask_app.route("/callback", methods=["POST"])
 def callback():
     data = request.get_json(silent=True) or {}
