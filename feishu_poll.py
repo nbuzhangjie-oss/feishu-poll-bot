@@ -169,6 +169,16 @@ def debug():
         "polls": len(votes),
     })
 
+@flask_app.route("/test_add_member", methods=["GET"])
+def test_add_member():
+    resp = requests.post(
+        f"https://open.feishu.cn/open-apis/im/v1/chats/{ACTIVITY_CHAT_ID}/members",
+        headers={"Authorization": f"Bearer {get_token()}"},
+        json={"id_list": [ADMIN_OPEN_ID], "member_id_type": "open_id"},
+        timeout=10,
+    ).json()
+    return jsonify(resp)
+
 @flask_app.route("/callback", methods=["POST"])
 def callback():
     data = request.get_json(silent=True) or {}
