@@ -13,6 +13,8 @@ APP_SECRET          = os.environ.get("APP_SECRET", "J81c4P2GgtPVTx7j6kzNGbO0Hnsm
 CHAT_ID             = os.environ.get("CHAT_ID", "oc_5cbe0bef879d1f9a736dd05d3edf1868")
 POLL_DURATION_HOURS = 48
 PORT                = int(os.environ.get("PORT", 5000))
+# 管理员 open_id，投票详情私信发给他，群里只显示汇总
+ADMIN_OPEN_ID       = os.environ.get("ADMIN_OPEN_ID", "ou_2edc78caaf90a9e03a732e3b8383a455")
 
 SCHEDULES = [
     {
@@ -50,11 +52,11 @@ def get_token() -> str:
     _token_cache["expire_at"] = now + data.get("expire", 7200)
     return _token_cache["token"]
 
-def send_text(chat_id: str, text: str):
+def send_text(receive_id: str, text: str, id_type: str = "chat_id"):
     requests.post(
-        "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=chat_id",
+        f"https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type={id_type}",
         headers={"Authorization": f"Bearer {get_token()}"},
-        json={"receive_id": chat_id, "msg_type": "text",
+        json={"receive_id": receive_id, "msg_type": "text",
               "content": json.dumps({"text": text}, ensure_ascii=False)},
         timeout=10,
     )
@@ -208,19 +210,22 @@ def process_vote(poll_id, open_id, option_index, chat_id):
         opt_name = options[option_index] if option_index < len(options) else "?"
         name     = get_user_name(open_id)
 
-        if is_change and old_index != option_index:
-            old_name = options[old_index] if isinstance(old_index, int) and old_index < len(options) else "?"
-            msg = f"🔄 {name} 改选了「{opt_name}」（原：{old_name}）"
-        else:
-            msg = f"✅ {name} 投票「{opt_name}」"
-
+        # 群里只发汇总（不暴露个人）
         summary = "  |  ".join(
             f"{EMOJIS[i] if i < len(EMOJIS) else str(i+1)} {opt}: {counts[i]}票"
             for i, opt in enumerate(options)
         )
-        msg += f"\n当前票数（共{total}人）：{summary}"
-        print(f"-> {msg}")
-        send_text(chat_id, msg)
+        group_msg = f"📊 当前票数（共{total}人）：{summary}"
+        send_text(chat_id, group_msg)
+
+        # 管理员私信：显示谁投了什么
+        if is_change and old_index != option_index:
+            old_name = options[old_index] if isinstance(old_index, int) and old_index < len(options) else "?"
+            admin_msg = f"🔄 {name} 改选了「{opt_name}」（原：{old_name}）\n{summary}"
+        else:
+            admin_msg = f"✅ {name} 投票「{opt_name}」\n{summary}"
+        print(f"-> {admin_msg}")
+        send_text(ADMIN_OPEN_ID, admin_msg, id_type="open_id")
 
     except Exception as e:
         import traceback
