@@ -214,8 +214,16 @@ def process_vote(poll_id, open_id, option_index, chat_id):
         opt_name = options[option_index] if option_index < len(options) else "?"
         name     = get_user_name(open_id)
 
-        # 点「参加」自动拉入活动群
-        if option_index == JOIN_OPTION_INDEX and ACTIVITY_CHAT_ID:
+        # 只处理「参加」，不参加直接忽略
+        if option_index != JOIN_OPTION_INDEX:
+            return
+
+        # 已经参加过，不重复处理
+        if is_change and old_index == JOIN_OPTION_INDEX:
+            return
+
+        # 拉入活动群
+        if ACTIVITY_CHAT_ID:
             add_resp = requests.post(
                 f"https://open.feishu.cn/open-apis/im/v1/chats/{ACTIVITY_CHAT_ID}/members",
                 headers={"Authorization": f"Bearer {get_token()}"},
@@ -226,31 +234,10 @@ def process_vote(poll_id, open_id, option_index, chat_id):
                 print(f"  -> 已将 {name} 加入活动群")
             else:
                 print(f"  -> 加群失败: {add_resp}")
-        elif old_index == JOIN_OPTION_INDEX and ACTIVITY_CHAT_ID and is_change:
-            # 改选为「不参加」，踢出活动群
-            requests.delete(
-                f"https://open.feishu.cn/open-apis/im/v1/chats/{ACTIVITY_CHAT_ID}/members",
-                headers={"Authorization": f"Bearer {get_token()}"},
-                json={"id_list": [open_id], "member_id_type": "open_id"},
-                timeout=10,
-            )
-            print(f"  -> 已将 {name} 移出活动群")
 
-        # 群里只发汇总（不暴露个人）
-        summary = "  |  ".join(
-            f"{EMOJIS[i] if i < len(EMOJIS) else str(i+1)} {opt}: {counts[i]}票"
-            for i, opt in enumerate(options)
-        )
-        group_msg = f"📊 当前票数（共{total}人）：{summary}"
-        send_text(chat_id, group_msg)
-
-        # 管理员私信：显示谁投了什么
-        if is_change and old_index != option_index:
-            old_name = options[old_index] if isinstance(old_index, int) and old_index < len(options) else "?"
-            admin_msg = f"🔄 {name} 改选了「{opt_name}」（原：{old_name}）\n{summary}"
-        else:
-            admin_msg = f"✅ {name} 投票「{opt_name}」\n{summary}"
-        print(f"-> {admin_msg}")
+        # 私信通知管理员
+        admin_msg = f"✅ {name} 参加本次例跑（共{counts[JOIN_OPTION_INDEX]}人参加）"
+        print(f"  -> {admin_msg}")
         send_text(ADMIN_OPEN_ID, admin_msg, id_type="open_id")
 
     except Exception as e:
