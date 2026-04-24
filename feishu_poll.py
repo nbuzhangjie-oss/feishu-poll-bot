@@ -25,6 +25,7 @@ SCHEDULES = [
         "name": "每周三MIRC例跑",
         "cron": {"day_of_week": "wed", "hour": 9, "minute": 0},
         "question": "周四晚上18:00 MIRC例跑，科技园西门集合",
+        "desc": "跑步距离 6-10km",
         "options": ["参加", "不参加"],
     },
 ]
@@ -83,7 +84,7 @@ def get_user_name(open_id: str) -> str:
 
 EMOJIS = ["1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣","🔟"]
 
-def build_card(poll_id, question, options, records, deadline_str) -> dict:
+def build_card(poll_id, question, options, records, deadline_str, desc="") -> dict:
     buttons = [
         {"tag": "button",
          "text": {"tag": "plain_text", "content": opt},
@@ -92,30 +93,36 @@ def build_card(poll_id, question, options, records, deadline_str) -> dict:
         for i, opt in enumerate(options)
     ]
 
+    elements = []
+    if desc:
+        elements.append({"tag": "div", "text": {"tag": "lark_md", "content": f"📍 {desc}"}})
+        elements.append({"tag": "hr"})
+    elements.append({"tag": "action", "actions": buttons})
+
     return {
         "config": {"wide_screen_mode": True, "update_multi": True},
         "header": {"title": {"tag": "plain_text", "content": f"🏃  {question}"}, "template": "blue"},
-        "elements": [
-            {"tag": "action", "actions": buttons},
-        ],
+        "elements": elements,
     }
 
 # ============================================================
 # 发送投票
 # ============================================================
 
-def send_poll(question: str, options: list, chat_id: str = CHAT_ID):
+def send_poll(question: str, options: list, chat_id: str = CHAT_ID, desc: str = ""):
     poll_id      = f"poll_{datetime.datetime.now().strftime('%Y%m%d%H%M')}_{uuid.uuid4().hex[:6]}"
     deadline     = datetime.datetime.now() + datetime.timedelta(hours=POLL_DURATION_HOURS)
     deadline_str = deadline.strftime("%m月%d日 %H:%M")
+    date_prefix  = datetime.datetime.now().strftime("%m月%d日")
+    full_question = f"{date_prefix} {question}"
 
     with votes_lock:
         votes[poll_id] = {
-            "question": question, "options": options,
+            "question": full_question, "options": options,
             "records": {}, "deadline_str": deadline_str, "chat_id": chat_id,
         }
 
-    card = build_card(poll_id, question, options, {}, deadline_str)
+    card = build_card(poll_id, full_question, options, {}, deadline_str, desc)
     resp = requests.post(
         "https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=chat_id",
         headers={"Authorization": f"Bearer {get_token()}"},
@@ -147,7 +154,7 @@ def send_test():
 @flask_app.route("/send_now", methods=["GET"])
 def send_now():
     for cfg in SCHEDULES:
-        send_poll(cfg["question"], cfg["options"])
+        send_poll(cfg["question"], cfg["options"], desc=cfg.get("desc", ""))
     return jsonify({"status": "ok"})
 
 @flask_app.route("/debug", methods=["GET"])
@@ -280,7 +287,7 @@ def start_scheduler():
     scheduler = BackgroundScheduler(timezone="Asia/Shanghai")
     for cfg in SCHEDULES:
         scheduler.add_job(
-            lambda q=cfg["question"], o=cfg["options"]: send_poll(q, o),
+            lambda q=cfg["question"], o=cfg["options"], d=cfg.get("desc",""): send_poll(q, o, desc=d),
             trigger="cron", **cfg["cron"],
             id=cfg["name"], misfire_grace_time=300,
         )
