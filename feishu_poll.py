@@ -144,6 +144,12 @@ def send_test():
     send_poll("【测试】机器人配置验证", ["收到 ✅", "没收到 ❌"])
     return jsonify({"status": "ok"})
 
+@flask_app.route("/send_now", methods=["GET"])
+def send_now():
+    for cfg in SCHEDULES:
+        send_poll(cfg["question"], cfg["options"])
+    return jsonify({"status": "ok"})
+
 @flask_app.route("/debug", methods=["GET"])
 def debug():
     return jsonify({
