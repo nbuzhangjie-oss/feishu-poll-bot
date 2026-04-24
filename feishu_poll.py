@@ -84,17 +84,6 @@ def get_user_name(open_id: str) -> str:
 EMOJIS = ["1️⃣","2️⃣","3️⃣","4️⃣","5️⃣","6️⃣","7️⃣","8️⃣","9️⃣","🔟"]
 
 def build_card(poll_id, question, options, records, deadline_str) -> dict:
-    counts = [0] * len(options)
-    for idx in records.values():
-        if 0 <= idx < len(options):
-            counts[idx] += 1
-    total = sum(counts)
-
-    lines = []
-    for i, opt in enumerate(options):
-        bar = "█" * int((counts[i] / total * 12) if total > 0 else 0)
-        lines.append(f"{EMOJIS[i] if i < len(EMOJIS) else str(i+1)} **{opt}**  {counts[i]}票  {bar}")
-
     buttons = [
         {"tag": "button",
          "text": {"tag": "plain_text", "content": opt},
@@ -105,16 +94,9 @@ def build_card(poll_id, question, options, records, deadline_str) -> dict:
 
     return {
         "config": {"wide_screen_mode": True, "update_multi": True},
-        "header": {"title": {"tag": "plain_text", "content": f"📊  {question}"}, "template": "blue"},
+        "header": {"title": {"tag": "plain_text", "content": f"🏃  {question}"}, "template": "blue"},
         "elements": [
-            {"tag": "div", "text": {"tag": "lark_md",
-             "content": f"共 **{total}** 人投票 | 截止 **{deadline_str}**"}},
-            {"tag": "hr"},
-            {"tag": "div", "text": {"tag": "lark_md", "content": "\n".join(lines)}},
-            {"tag": "hr"},
             {"tag": "action", "actions": buttons},
-            {"tag": "hr"},
-            {"tag": "note", "elements": [{"tag": "plain_text", "content": "点击按钮参与投票，可随时改选"}]},
         ],
     }
 
