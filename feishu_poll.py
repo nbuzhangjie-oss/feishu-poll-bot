@@ -10,7 +10,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 
 APP_ID              = os.environ.get("APP_ID", "cli_a96da38ecf7a5cc2")
 APP_SECRET          = os.environ.get("APP_SECRET", "J81c4P2GgtPVTx7j6kzNGbO0HnsmiyPf")
-CHAT_ID             = os.environ.get("CHAT_ID", "oc_5cbe0bef879d1f9a736dd05d3edf1868")
+CHAT_ID             = os.environ.get("CHAT_ID", "oc_2f01ca5c9f1debe19f735aedbf96038e")
 POLL_DURATION_HOURS = 48
 PORT                = int(os.environ.get("PORT", 5000))
 # 管理员 open_id，投票详情私信发给他，群里只显示汇总
