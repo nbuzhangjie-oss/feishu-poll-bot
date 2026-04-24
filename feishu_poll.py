@@ -27,6 +27,7 @@ SCHEDULES = [
         "question": "周四晚上18:00 MIRC例跑，科技园西门集合",
         "desc": "跑步距离 6-10km",
         "options": ["参加", "不参加"],
+        "date_offset_days": 1,
     },
 ]
 
@@ -109,11 +110,12 @@ def build_card(poll_id, question, options, records, deadline_str, desc="") -> di
 # 发送投票
 # ============================================================
 
-def send_poll(question: str, options: list, chat_id: str = CHAT_ID, desc: str = ""):
+def send_poll(question: str, options: list, chat_id: str = CHAT_ID, desc: str = "", date_offset_days: int = 0):
     poll_id      = f"poll_{datetime.datetime.now().strftime('%Y%m%d%H%M')}_{uuid.uuid4().hex[:6]}"
     deadline     = datetime.datetime.now() + datetime.timedelta(hours=POLL_DURATION_HOURS)
     deadline_str = deadline.strftime("%m月%d日 %H:%M")
-    date_prefix  = datetime.datetime.now().strftime("%m月%d日")
+    run_date     = datetime.datetime.now() + datetime.timedelta(days=date_offset_days)
+    date_prefix  = run_date.strftime("%m月%d日")
     full_question = f"{date_prefix} {question}"
 
     with votes_lock:
@@ -154,7 +156,7 @@ def send_test():
 @flask_app.route("/send_now", methods=["GET"])
 def send_now():
     for cfg in SCHEDULES:
-        send_poll(cfg["question"], cfg["options"], desc=cfg.get("desc", ""))
+        send_poll(cfg["question"], cfg["options"], desc=cfg.get("desc", ""), date_offset_days=cfg.get("date_offset_days", 0))
     return jsonify({"status": "ok"})
 
 @flask_app.route("/debug", methods=["GET"])
@@ -287,7 +289,7 @@ def start_scheduler():
     scheduler = BackgroundScheduler(timezone="Asia/Shanghai")
     for cfg in SCHEDULES:
         scheduler.add_job(
-            lambda q=cfg["question"], o=cfg["options"], d=cfg.get("desc",""): send_poll(q, o, desc=d),
+            lambda q=cfg["question"], o=cfg["options"], d=cfg.get("desc",""), n=cfg.get("date_offset_days",0): send_poll(q, o, desc=d, date_offset_days=n),
             trigger="cron", **cfg["cron"],
             id=cfg["name"], misfire_grace_time=300,
         )
