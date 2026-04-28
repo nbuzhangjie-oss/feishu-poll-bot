@@ -17,6 +17,7 @@ PORT                = int(os.environ.get("PORT", 5000))
 ADMIN_OPEN_ID       = os.environ.get("ADMIN_OPEN_ID", "ou_2edc78caaf90a9e03a732e3b8383a455")
 # 活动群 chat_id，点「参加」自动拉人入群（先创建好群并把机器人加进去）
 ACTIVITY_CHAT_ID    = os.environ.get("ACTIVITY_CHAT_ID", "oc_b90b4f2b47b73b21b10daeb80756cdca")
+API_KEY             = os.environ.get("API_KEY", "mirc2024")
 # 投票中哪个选项index算「参加」
 JOIN_OPTION_INDEX   = 0
 
@@ -155,6 +156,8 @@ def send_test():
 
 @flask_app.route("/send_now", methods=["GET"])
 def send_now():
+    if request.args.get("key") != API_KEY:
+        return jsonify({"error": "forbidden"}), 403
     for cfg in SCHEDULES:
         send_poll(cfg["question"], cfg["options"], desc=cfg.get("desc", ""), date_offset_days=cfg.get("date_offset_days", 0))
     return jsonify({"status": "ok"})
